@@ -23,100 +23,92 @@ try:
         return ImageFont.load_default()
 
     # ══════════════════════════════════════════════════════════════════════
-    # 左下：游戏主界面示意图（在P1预留的面板上绘制内容）
+    # 左下：用实际游戏截图替换手绘示意图
     # ══════════════════════════════════════════════════════════════════════
     PX, PY, PW, PH = 18, 432, 574, 375
 
-    # 面板标题
-    draw.text((PX + PW // 2, PY + 16), "<<  游戏主界面  >>",
-              font=gf(18), fill=(160, 200, 255), anchor='mm')
+    scr_path = r'd:\Users\ymx36\Desktop\三雄争锋游戏\屏幕截图 2026-04-29 033532.png'
+    scr = Image.open(scr_path).convert('RGB')
+    sw, sh = scr.size
 
-    # ── 绘制牌的辅助函数 ─────────────────────────────────────────────────
-    def draw_card(x, y, suit, num, col):
-        draw.rectangle([x, y, x+33, y+45], fill=(245, 245, 245), outline=(140, 140, 140), width=1)
-        draw.text((x + 3, y + 2), suit, font=gf(12), fill=col)
-        draw.text((x + 3, y + 14), num, font=gf(14), fill=col)
+    # 允许裁掉最下面 1/25 高度
+    crop_bottom = sh // 25
+    scr = scr.crop((0, 0, sw, sh - crop_bottom))
+    sw, sh = scr.size
 
-    def draw_back(x, y):
-        draw.rectangle([x, y, x+33, y+45], fill=(25, 55, 140), outline=(80, 120, 200), width=1)
-        draw.rectangle([x+4, y+4, x+29, y+41], fill=(18, 40, 110), outline=(60, 100, 180), width=1)
+    # 按比例缩放：整体塞进 PW x PH，保持比例（不再裁剪）
+    scale = min(PW / sw, PH / sh)
+    new_w, new_h = int(sw * scale), int(sh * scale)
+    scr = scr.resize((new_w, new_h), Image.LANCZOS)
 
-    RED = (210, 40, 40)
-    BLK = (30, 30, 30)
+    # 居中粘贴到面板区域（上对齐，水平居中）
+    paste_x = PX + (PW - new_w) // 2
+    paste_y = PY + (PH - new_h) // 2
+    img.paste(scr, (paste_x, paste_y))
 
-    # AI玩家1 行
-    ay1 = PY + 42
-    draw.text((PX + 6, ay1 + 13), "电脑1", font=gf(15), fill=(140, 200, 140))
-    for i in range(7):
-        draw_back(PX + 52 + i * 38, ay1)
-
-    # AI玩家2 行
-    ay2 = PY + 100
-    draw.text((PX + 6, ay2 + 13), "电脑2", font=gf(15), fill=(140, 200, 140))
-    for i in range(7):
-        draw_back(PX + 52 + i * 38, ay2)
-
-    # 规则/进度条
-    ry = PY + 156
-    draw.rectangle([PX + 4, ry, PX + PW - 4, ry + 26], fill=(14, 28, 75))
-    draw.text((PX + PW // 2, ry + 13),
-              "当前规则: 比大  |  第 5 局 / 18  |  得分  电脑1:2  电脑2:1  你:3",
-              font=gf(14), fill=(255, 215, 0), anchor='mm')
-
-    # 桌面出牌
-    ty = PY + 192
-    draw.text((PX + 6, ty + 13), "桌面:", font=gf(15), fill=(180, 180, 180))
-    table = [("♠", "A", BLK), ("♥", "K", RED), ("♦", "7", RED)]
-    for i, (s, n, c) in enumerate(table):
-        draw_card(PX + 58 + i * 42, ty, s, n, c)
-    draw.text((PX + 60, ty - 14), "独占", font=gf(12), fill=(255, 140, 0))
-
-    # 分隔线
-    draw.line([(PX + 4, PY + 248), (PX + PW - 4, PY + 248)],
-              fill=(50, 80, 150), width=1)
-
-    # 你的手牌
-    hy = PY + 258
-    draw.text((PX + 6, hy), "你的手牌:", font=gf(15), fill=(255, 215, 0))
-    hand = [("♠","3",BLK), ("♥","5",RED), ("♣","10",BLK),
-            ("♦","J",RED), ("♠","Q",BLK), ("♥","K",RED), ("♣","A",BLK)]
-    for i, (s, n, c) in enumerate(hand):
-        draw_card(PX + 6 + i * 80, hy + 24, s, n, c)
-    draw.text((PX + 6 + 82, hy + 24 - 14), "撤回", font=gf(12), fill=(100, 220, 255))
-
-    # 操作按钮示意
-    by = PY + PH - 42
-    btns = [("出  牌", (30, 90, 50), (80, 200, 100)),
-            ("查看规则", (80, 50, 10), (220, 160, 50)),
-            ("使用特殊牌", (90, 20, 20), (200, 70, 70))]
-    bx = PX + 4
-    for label, bg_c, fg_c in btns:
-        bw = len(label) * 13 + 20
-        draw.rectangle([bx, by, bx + bw, by + 28], fill=bg_c, outline=fg_c, width=1)
-        draw.text((bx + bw // 2, by + 14), label, font=gf(14), fill=fg_c, anchor='mm')
-        bx += bw + 12
+    # 面板边框
+    draw.rectangle([PX, PY, PX + PW, PY + PH], outline=(80, 130, 220), width=2)
 
     # ══════════════════════════════════════════════════════════════════════
-    # 左侧上半：合照区标注（填补左上空白，叠加半透明条）
+    # 左上：团队合照（完整不裁，按比例缩放放入左上角）
     # ══════════════════════════════════════════════════════════════════════
-    from PIL import Image as _PIL
-    # 顶部左侧标签条（y=8~48）
-    tag_ov = _PIL.new('RGBA', (W, H), (0, 0, 0, 0))
-    td = ImageDraw.Draw(tag_ov)
-    td.rectangle([8, 8, 590, 50], fill=(6, 10, 28, 180))
-    td.rectangle([8, 8, 590, 50], outline=(80, 130, 220, 180))
-    img_rgba3 = img.convert('RGBA')
-    img_rgba3 = _PIL.alpha_composite(img_rgba3, tag_ov)
-    img = img_rgba3.convert('RGB')
-    draw = ImageDraw.Draw(img)
-    draw.text((20, 29), "不知道叫啥小组  ·  开发团队合影  ·  2026",
-              font=gf(20), fill=(220, 185, 60), anchor='lm')
+    photo_path = r'd:\Users\ymx36\Desktop\三雄争锋游戏\dfa04211d212f6afc7ff802f0d5557b7.jpg'
+    import os as _os
+    if _os.path.exists(photo_path):
+        from PIL import Image as _PIL2
+        photo = _PIL2.open(photo_path).convert('RGB')
+        pw, ph = photo.size
+        # 可用区域：左上，x=18~592, y=20~390（避开顶金条和截图标签栏）
+        max_pw, max_ph = 574, 368
+        scale_p = min(max_pw / pw, max_ph / ph)
+        nw, nh = int(pw * scale_p), int(ph * scale_p)
+        photo = photo.resize((nw, nh), _PIL2.LANCZOS)
+        # 左对齐，顶部留8px给金条后紧靠
+        photo_x = 18 + (max_pw - nw) // 2
+        photo_y = 20
+        img.paste(photo, (photo_x, photo_y))
+        # 边框
+        draw.rectangle([photo_x-2, photo_y-2, photo_x+nw+1, photo_y+nh+1],
+                        outline=(80, 130, 220), width=2)
+
+        # ── 顶部标题：开发人员合影 ───────────────────────────────────────
+        draw.rectangle([photo_x, photo_y, photo_x+nw, photo_y+28], fill=(10, 20, 60))
+        draw.text((photo_x + nw//2, photo_y + 14), "开发人员合影",
+                  font=gf(16), fill=(255, 215, 0), anchor='mm')
+
+        # ── 人员姓名标注（各自实际站位位置） ──────────────────────────────
+        # 雷浩阳：靠近左边缘，高度在照片中偏下（约55%处）
+        # 岳明轩：中间偏右，底部附近
+        # 郭晓磊：右侧1/3，底部附近
+        per_w = nw // 3
+        persons = [
+            ("雷浩阳", photo_x + int(per_w * 0.15),       photo_y + int(nh * 0.55)),
+            ("岳明轩", photo_x + per_w + per_w // 2,       photo_y + nh - 36),
+            ("郭晓磊", photo_x + per_w * 2 + per_w // 2,  photo_y + nh - 36),
+        ]
+        for name, cx, name_y in persons:
+            nb_w = len(name) * 14 + 16
+            draw.rectangle([cx - nb_w//2, name_y - 2, cx + nb_w//2, name_y + 20],
+                            fill=(6, 12, 40))
+            draw.text((cx, name_y + 9), name, font=gf(14), fill=(255, 220, 80), anchor='mm')
+            draw.line([(cx, name_y - 2), (cx, name_y - 16)], fill=(255, 220, 80), width=1)
+            draw.polygon([(cx-4, name_y-16), (cx+4, name_y-16), (cx, name_y-24)],
+                          fill=(255, 220, 80))
+
+        # 标签贴在合照下方
+        label_y = photo_y + nh + 4
+        draw.rectangle([18, label_y, 18+max_pw, label_y+24], fill=(12, 24, 70))
+        draw.text((18 + max_pw//2, label_y + 12),
+                  "不知道叫啥小组  ·  开发团队合影  ·  2026",
+                  font=gf(16), fill=(220, 185, 60), anchor='mm')
+
+
 
     # 左侧中间：版本/平台标签（y=370~415，紧贴游戏界面面板上方）
     draw.rectangle([8, 396, 590, 430], fill=(14, 24, 70))
     draw.line([(8, 396), (590, 396)], fill=(80, 130, 220), width=1)
     draw.line([(8, 430), (590, 430)], fill=(80, 130, 220), width=1)
-    draw.text((299, 413), "▼  游戏运行截图  ·  Windows  ·  人机对战模式  ▼",
+    draw.text((299, 413), "▼  EasyX GUI 实际运行截图  ·  人机对战模式  ▼",
               font=gf(18), fill=(140, 180, 240), anchor='mm')
 
     # ══════════════════════════════════════════════════════════════════════
@@ -160,7 +152,7 @@ try:
         ("★", "5号牌 狸猫换太子 · 消耗撤回，神出鬼没"),
         ("★", "连顺触发抽牌 · 三连爆发随机获牌"),
         ("★", "大王防御 / 小王偷窥 · 王牌双效"),
-        ("★", "小概率动态补分 · 规则随机反转"),
+        ("★", "平局追加补分 · 同点反转规则"),
         ("★", "加赛决胜 · 连续多场积分继承"),
     ]
     for i, (sym, txt) in enumerate(features):
