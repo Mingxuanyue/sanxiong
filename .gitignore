@@ -1,0 +1,7 @@
+# 只保留核心文件，忽略其余所有内容
+*
+
+# 白名单：允许跟踪的文件
+!.gitignore
+!三雄争锋v3.cpp
+!sanxiong_release.zip
