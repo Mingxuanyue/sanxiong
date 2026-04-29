@@ -1,7 +1,14 @@
-# 只保留核心文件，忽略其余所有内容
+﻿# 只保留核心文件，忽略其余所有内容
 *
 
-# 白名单：允许跟踪的文件
+# 白名单：允许追踪的文件
 !.gitignore
 !三雄争锋v3.cpp
 !sanxiong_release.zip
+
+# Python 版游戏文件
+!engine.py
+!render.py
+!anim.py
+!audio.py
+!main.py
