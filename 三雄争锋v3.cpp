@@ -1186,6 +1186,8 @@ void GameEngine::perform10Mechanism(int tenPlayer){
     int chosen;
     char pr[64]; sprintf(pr,"[盲弃] 从 %s 的%d张牌中选一编号",
         players[tenPlayer].name.c_str(),(int)players[tenPlayer].hand.size());
+    // 小王偷窥机会（下家可先偷看 tenPlayer 手牌再选）
+    performSmallJokerPeek(nextP, tenPlayer);
     if(players[nextP].isHuman){
         chosen=guiBlindSelect(nextP,pr,(int)players[tenPlayer].hand.size());
     } else {
@@ -1230,10 +1232,13 @@ int GameEngine::performBigJokerDefense(int targetPlayer, int chosen){
     if(handSize<=1) return chosen; // 只剩1张，偏移无意义
     bool doDefend;
     if(players[targetPlayer].isHuman){
-        char body[128];
+        char body[256];
         int remaining=2-players[targetPlayer].bigJokerUses;
-        sprintf(body,"对方选了编号 %d。\n你持有大王，可将目标偏移为编号 %d\n（已用 %d/2 次，剩余 %d 次）",
-            chosen+1, (chosen==0)?handSize:chosen,
+        int offsetIdx=(chosen==0)?(handSize-1):(chosen-1);
+        const char* chosenName=rankStr(players[targetPlayer].hand[chosen].rank);
+        const char* offsetName=rankStr(players[targetPlayer].hand[offsetIdx].rank);
+        sprintf(body,"对方选了 编号%d（%s）。\n可偏移至 编号%d（%s）\n（已用 %d/2 次，剩余 %d 次）",
+            chosen+1, chosenName, offsetIdx+1, offsetName,
             players[targetPlayer].bigJokerUses, remaining);
         doDefend=guiYesNo("[大王防御] 触发？",body);
     } else {
@@ -1272,8 +1277,11 @@ int GameEngine::performBigJokerDefense(int targetPlayer, int chosen){
         int newChosen=(chosen==0)?(handSize-1):(chosen-1);
         addMsg("[大王防御] "+players[targetPlayer].name+" 偏移了目标！");
         BeginBatchDraw(); renderGameScreen();
-        char info[80]; sprintf(info,"防御成功！编号 %d -> %d（已用 %d/2 次）",
-            chosen+1,newChosen+1,players[targetPlayer].bigJokerUses);
+        char info[128];
+        const char* cName=rankStr(players[targetPlayer].hand[chosen].rank);
+        const char* nName=rankStr(players[targetPlayer].hand[newChosen].rank);
+        sprintf(info,"防御成功！编号%d（%s）→ 编号%d（%s）\n（已用 %d/2 次）",
+            chosen+1,cName,newChosen+1,nName,players[targetPlayer].bigJokerUses);
         showMsgBox("[大王防御！]",info);
         EndBatchDraw();
         return newChosen;
@@ -1474,7 +1482,7 @@ void GameEngine::playRound(){
                 // 规则按钮
                 if(actionBtns[1].hit(mx,my)){
                     BeginBatchDraw(); renderGameScreen();
-                    showMsgBox("游戏规则","比大:K最大A最小 | 比小:A最优K最差\n出10拿走他人牌 | 5号牌收回自己的牌\n连顺触发随机抽牌 | 大王防御 小王偷窥");
+                    showMsgBox("游戏规则","比大:K最大A最小 | 比小:A最优K最差\n出10拿走他人牌 | 5号牌收回自己的牌\n连顺触发随机抽牌 | 大王防御\n小王偷窥（连顺抓牌/出10下家盲弃）");
                     EndBatchDraw();
                 }
                 // 提示按钮
@@ -1888,7 +1896,19 @@ void GameEngine::startNewGame(){
     }
     // 18局结束
     if(gameMode==0){
-        showFinalRank();
+        // 单局模式：检查是否并列第一，并列则加赛
+        int maxS=0; for(int i=0;i<3;++i) if(players[i].score>maxS) maxS=players[i].score;
+        vector<int> top; for(int i=0;i<3;++i) if(players[i].score==maxS) top.push_back(i);
+        if((int)top.size()>=2){
+            BeginBatchDraw(); renderGameScreen();
+            showMsgBox("平局！进入加赛","18局结束，最高分并列！\n进行加赛决出冠军！");
+            EndBatchDraw();
+            vector<int> tbS;
+            playTiebreaker(top,tbS);
+            showFinalRank(tbS);
+        } else {
+            showFinalRank();
+        }
     } else {
         // 达标分模式18局结束且无人达标：让玩家选择继续或退出，不重选模式
         int bw=500,bh=220,bx=(WIN_W-bw)/2,by=(WIN_H-bh)/2;
