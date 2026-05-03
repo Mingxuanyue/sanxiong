@@ -63,12 +63,16 @@ class BaseAnim:
 
 # ====================================================================
 # SlideAnim — 一张牌从 src 滑向 dst
+# arc   : 飞行弧线高度（像素），正值=向上隆起，使飞行轨迹更自然
+# rotate: 飞行中最大旋转角度（度），牌在中途略微倾斜
 # ====================================================================
 class SlideAnim(BaseAnim):
     def __init__(self, card: Card,
                  src: Tuple[int, int], dst: Tuple[int, int],
                  duration: float = 0.35,
                  facedown: bool = True,
+                 arc: int = 0,
+                 rotate: float = 0.0,
                  card_w: int = R.CARD_W, card_h: int = R.CARD_H,
                  on_done: Optional[Callable] = None,
                  parallel: bool = False):
@@ -77,6 +81,8 @@ class SlideAnim(BaseAnim):
         self.src = src
         self.dst = dst
         self.facedown = facedown
+        self.arc = arc
+        self.rotate = rotate
         self.card_w = card_w
         self.card_h = card_h
 
@@ -84,15 +90,35 @@ class SlideAnim(BaseAnim):
         t = ease_out_cubic(self.progress)
         x = self.src[0] + (self.dst[0] - self.src[0]) * t
         y = self.src[1] + (self.dst[1] - self.src[1]) * t
+        # 弧线：正弦曲线在中途向上隆起，给飞牌一种抛物线感
+        if self.arc != 0:
+            arc_offset = self.arc * math.sin(math.pi * self.progress)
+            y -= arc_offset
         return int(x), int(y)
 
     def draw(self, surf: pygame.Surface):
         if self.done:
             return
         cx, cy = self.current_pos()
-        R.draw_card(surf, self.card, cx, cy,
-                    facedown=self.facedown,
-                    width=self.card_w, height=self.card_h)
+        if self.rotate != 0:
+            # 飞行中途旋转，正弦曲线使牌在起点/终点不倾斜
+            angle = self.rotate * math.sin(math.pi * self.progress)
+            tmp = pygame.Surface((self.card_w, self.card_h), pygame.SRCALPHA)
+            tmp.fill((0, 0, 0, 0))
+            R.draw_card(tmp, self.card, 0, 0,
+                        facedown=self.facedown,
+                        width=self.card_w, height=self.card_h)
+            rotated = pygame.transform.rotate(tmp, angle)
+            # src/dst/current_pos 使用牌中心坐标，旋转后仍以中心对齐。
+            ox = cx - rotated.get_width() // 2
+            oy = cy - rotated.get_height() // 2
+            surf.blit(rotated, (ox, oy))
+        else:
+            R.draw_card(surf, self.card,
+                        cx - self.card_w // 2,
+                        cy - self.card_h // 2,
+                        facedown=self.facedown,
+                        width=self.card_w, height=self.card_h)
 
 
 # ====================================================================

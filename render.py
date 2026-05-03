@@ -302,10 +302,12 @@ def draw_hand(surf: pygame.Surface, cards: List[Card],
               cx: int, cy: int,
               selected_idx: int = -1,
               facedown: bool = False,
-              card_w: int = CARD_W, card_h: int = CARD_H) -> List[pygame.Rect]:
+              card_w: int = CARD_W, card_h: int = CARD_H,
+              max_x: Optional[int] = None) -> List[pygame.Rect]:
     """
-    在 (cx, cy) 为中心水平绘制一组手牌，
-    返回每张牌的 Rect 列表（用于点击检测）
+    在 (cx, cy) 为中心水平绘制一组手牌。
+    max_x: 手牌区右边界（超出则压缩步距），避免与按钮区重叠。
+    返回每张牌的 Rect 列表（用于点击检测）。
     """
     n = len(cards)
     if n == 0:
@@ -314,6 +316,13 @@ def draw_hand(surf: pygame.Surface, cards: List[Card],
     step = card_w - HAND_OVERLAP
     total_w = card_w + step * (n - 1)
     x0 = cx - total_w // 2
+
+    # 若超出右边界，压缩步距
+    if max_x is not None and x0 + total_w > max_x:
+        total_w = max_x - max(8, x0)
+        total_w = max(card_w, total_w)
+        step = max(8, (total_w - card_w) // max(1, n - 1))
+        x0 = max(8, cx - total_w // 2)
 
     rects = []
     for k, card in enumerate(cards):
@@ -513,3 +522,87 @@ def draw_countdown(surf: pygame.Surface, cx: int, cy: int,
                         start_a, end_a, 4)
     text = f"{int(math.ceil(remain))}"
     _render_text(surf, text, 20, C_WHITE, (cx, cy), bold=True, anchor="center")
+
+
+# ====================================================================
+# 本局结果面板（v3.cpp Step12 对应）
+# ====================================================================
+def draw_result_panel(surf: pygame.Surface,
+                      scores: list, players: list, round_num: int,
+                      surf_w: int = 1080, surf_h: int = 720):
+    """绘制本局结果面板，v3.cpp风格：面板+三行分数+点击继续"""
+    pw, ph = 460, 230
+    px = (surf_w - pw) // 2
+    py = (surf_h - ph) // 2 + 50
+
+    overlay = pygame.Surface((pw, ph), pygame.SRCALPHA)
+    overlay.fill((*C_PANEL_D, 245))
+    surf.blit(overlay, (px, py))
+    pygame.draw.rect(surf, C_GOLD, pygame.Rect(px, py, pw, ph), 2, border_radius=12)
+
+    _render_text(surf, f"第 {round_num} 局结果", 20, C_GOLD,
+                 (px + pw // 2, py + 28), bold=True, anchor="center")
+    pygame.draw.line(surf, C_GOLD, (px + 18, py + 52), (px + pw - 18, py + 52), 1)
+
+    for i in range(3):
+        s = scores[i] if i < len(scores) else 0
+        total_s = players[i].score if i < len(players) else 0
+        buf = f"{players[i].name}   +{s}分   (总: {total_s}分)"
+        if s == 2:
+            col = C_GOLD
+        elif s == 1:
+            col = (88, 218, 128)
+        else:
+            col = C_DIM
+        _render_text(surf, buf, 17, col,
+                     (px + pw // 2, py + 72 + i * 38),
+                     bold=(s == 2), anchor="center")
+
+    _render_text(surf, "[ 点击任意处继续 ]", 14, C_DIM,
+                 (px + pw // 2, py + ph - 22), anchor="center")
+
+
+# ====================================================================
+# 通用信息提示框
+# ====================================================================
+def draw_info_popup(surf: pygame.Surface, title: str, body: str,
+                    sub: str = "",
+                    surf_w: int = 1080, surf_h: int = 720,
+                    card=None):
+    """类似 v3.cpp showMsgBox：深蓝面板+金色边框+标题+内容+点击继续"""
+    pw, ph = 540, 240
+    if card is not None:
+        ph = 320
+    px = (surf_w - pw) // 2
+    py = (surf_h - ph) // 2
+
+    # 半透明遮罩
+    mask = pygame.Surface((surf_w, surf_h), pygame.SRCALPHA)
+    mask.fill((0, 0, 0, 140))
+    surf.blit(mask, (0, 0))
+
+    overlay = pygame.Surface((pw, ph), pygame.SRCALPHA)
+    overlay.fill((*C_PANEL_D, 250))
+    surf.blit(overlay, (px, py))
+    pygame.draw.rect(surf, C_GOLD, pygame.Rect(px, py, pw, ph), 2, border_radius=12)
+
+    _render_text(surf, title, 22, C_GOLD,
+                 (px + pw // 2, py + 36), bold=True, anchor="center")
+    pygame.draw.line(surf, C_GOLD, (px + 18, py + 62), (px + pw - 18, py + 62), 1)
+
+    _render_text(surf, body, 17, C_TEXT,
+                 (px + pw // 2, py + ph // 2 - 10),
+                 anchor="center")
+    if sub:
+        _render_text(surf, sub, 14, C_DIM,
+                     (px + pw // 2, py + ph // 2 + 18),
+                     anchor="center")
+
+    # 如果传入card则展示在中央
+    if card is not None:
+        draw_card(surf, card, px + pw // 2 - CARD_W // 2,
+                  py + ph // 2 - CARD_H // 2 + 10)
+
+    _render_text(surf, "[ 点击任意处继续 ]", 14, C_DIM,
+                 (px + pw // 2, py + ph - 24), anchor="center")
+
